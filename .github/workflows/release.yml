@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'patch | minor | major | explicit (e.g. 0.2.3)'
+        description: "patch | minor | major | explicit (e.g. 0.2.3)"
         required: true
-        default: 'patch'
+        default: "patch"
 
 permissions:
   contents: write
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # we need tags and full history for notes
+          fetch-depth: 0 # we need tags and full history for notes
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,14 +35,14 @@ jobs:
           INPUT="${{ github.event.inputs.bump }}"
 
           # Read current project version from pyproject.toml
-          CURR="$(python - <<'PY'
-import re, sys, pathlib
-p = pathlib.Path("pyproject.toml").read_text()
-m = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', p, flags=re.M)
-if not m: sys.exit("Version not found in pyproject.toml")
-print(m.group(1))
-PY
-)"
+          CURR="$(python - <<PY
+          import re, sys, pathlib
+          p = pathlib.Path("pyproject.toml").read_text()
+          m = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', p, flags=re.M)
+          if not m: sys.exit("Version not found in pyproject.toml")
+          print(m.group(1))
+          PY
+          )"
           echo "Current version: ${CURR}"
 
           # Decide next version
@@ -63,14 +63,14 @@ PY
           echo "next=${NEXT}" >> "$GITHUB_OUTPUT"
 
           # In-place replace in pyproject.toml
-          python - <<'PY'
-import re, pathlib, os
-pp = pathlib.Path("pyproject.toml")
-text = pp.read_text()
-nextv = os.environ["NEXT"]
-new = re.sub(r'(^\s*version\s*=\s*")([^"]+)(".*$)', r'\1'+nextv+r'\3', text, flags=re.M)
-pp.write_text(new)
-PY
+          python - <<PY
+          import re, pathlib, os
+          pp = pathlib.Path("pyproject.toml")
+          text = pp.read_text()
+          nextv = os.environ["NEXT"]
+          new = re.sub(r'(^\s*version\s*=\s*")([^"]+)(".*$)', r'\1'+nextv+r'\3', text, flags=re.M)
+          pp.write_text(new)
+          PY
         env:
           NEXT: ${{ steps.bump.outputs.next }}
 
@@ -97,14 +97,14 @@ PY
         run: |
           set -euo pipefail
           TAG="v${{ steps.bump.outputs.next }}"
-          PROJ="$(python - <<'PY'
-import re, pathlib, sys
-p = pathlib.Path("pyproject.toml").read_text()
-import re
-m = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', p, flags=re.M)
-print(m.group(1))
-PY
-)"
+          PROJ="$(python - <<PY
+          import re, pathlib, sys
+          p = pathlib.Path("pyproject.toml").read_text()
+          import re
+          m = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', p, flags=re.M)
+          print(m.group(1))
+          PY
+          )"
           if [[ "v${PROJ}" != "${TAG}" ]]; then
             echo "Version mismatch: tag ${TAG} vs project ${PROJ}" >&2
             exit 1
