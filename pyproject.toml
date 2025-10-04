@@ -8,7 +8,8 @@ version = "0.2.1"
 description = "Minimal PKI CLI for S3 state and AWS Secrets Manager (universal schema)"
 readme = "README.md"
 requires-python = ">=3.9"
-authors = [{name="Your Org", email="devnull@example.com"}]
+license = { file = "LICENSE.md" }
+authors = [{name="Rafal Masiarek", email="rafal@masiarek.pl"}]
 dependencies = [
   "boto3>=1.26.0",
   "PyYAML>=6.0",

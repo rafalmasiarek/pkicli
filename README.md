@@ -1,12 +1,12 @@
 # pkicli
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 `pkicli` is a small command‑line tool to manage X.509 PKI state stored in **AWS S3** with secrets in **AWS Secrets Manager**.
 It is **generic** (not Kubernetes‑specific) and aims to be safe, explicit, and easy to automate.
 
 - State lives in S3 as JSON (per‑CA, per‑certificate, and a single **cert-inventory.json**).
 - Secrets (PEM certs/keys or arbitrary strings) live in Secrets Manager as **plain SecretString** (no extra base64).
 - All write operations inject S3 object metadata (`s3_meta.version_id`, `s3_meta.etag`) into the JSON by doing a two‑step PUT.
-- Comments and code are in English.
 
 ## Requirements
 
@@ -33,7 +33,9 @@ This installs the `pkicli` entry point (e.g. `/usr/local/bin/pkicli`).
 Global options:
 
 ```bash
-pkicli   --region eu-central-1   --state-bucket <bucket-name>   [--state-prefix pki/state]   [--output json|table|yaml]   <command> ...
+pkicli   --region eu-central-1   
+         --state-bucket <bucket-name>   
+         [--state-prefix pki/state]   [--output json|table|yaml]   <command> ...
 ```
 
 - If `--state-prefix` is omitted, the default is `pki/state`.
@@ -126,3 +128,20 @@ Inventory contains:
 - The tool prefers plain strings in Secrets Manager. PEM values are stored as `SecretString` without extra base64.
 - Table output is available for the common read paths; JSON is the default output; YAML requires `PyYAML`.
 - The CLI is tolerant of legacy JSON fields; unknown keys are ignored.
+
+## License
+
+This project is licensed under the **MIT License** — you are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, provided that the original copyright notice and this permission notice are included in all copies or substantial portions of the Software.
+
+The software is provided **"as is"**, without warranty of any kind, express or implied, including but not limited to the warranties of **merchantability**, **fitness for a particular purpose**, and **noninfringement**.  
+In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
+
+See the [LICENSE.md](LICENSE.md) file for the full text of the MIT License.
+
+## Authors
+
+**Rafał Masiarek** – original author & maintainer  
+- 🌐 [masiarek.pl](https://masiarek.pl)  
+- 🐙 [github.com/rafalmasiarek](https://github.com/rafalmasiarek)
+
+Contributions are welcome! Feel free to open issues, submit pull requests, or suggest new features.

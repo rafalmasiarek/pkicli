@@ -84,10 +84,16 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commit the version bump and tag it
-          git add pyproject.toml
-          git commit -m "chore(release): bump version to ${NEXT}"
-          git tag -a "v${NEXT}" -m "v${NEXT}"
+          # Commit only if there are staged changes (but schould be always because we just changed version in myproject.toml)
+          if ! git diff --cached --quiet || ! git diff --quiet; then
+            git add pyproject.toml
+            git commit -m "chore(release): bump version to ${NEXT} [skip ci]"
+          else
+            echo "No changes to commit."
+          fi
+
+          # tag always (even if version was not changed)
+          git tag -a "v${NEXT}" -m "v${NEXT} [skip ci]"
 
           # Push commit and tag
           git push --follow-tags
@@ -100,7 +106,6 @@ jobs:
           PROJ="$(python - <<PY
           import re, pathlib, sys
           p = pathlib.Path("pyproject.toml").read_text()
-          import re
           m = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', p, flags=re.M)
           print(m.group(1))
           PY
@@ -215,6 +220,29 @@ jobs:
           } > "$OUT"
 
           echo "notes=$OUT" >> "$GITHUB_OUTPUT"
+
+      # ===== Commit release notes back to repository (reverse commit) =====
+      - name: Commit CHANGELOG.md back to repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          CUR_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+          NOTES_FILE="${{ steps.relnotes.outputs.notes }}"
+          TAG="v${{ steps.bump.outputs.next }}"
+
+          # Prepend notes to CHANGELOG.md (create if not exists)
+          if [[ -f CHANGELOG.md ]]; then
+            { echo; cat "$NOTES_FILE"; echo; cat CHANGELOG.md; } > CHANGELOG.new.md
+            mv CHANGELOG.new.md CHANGELOG.md
+          else
+            cp "$NOTES_FILE" CHANGELOG.md
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs(changelog): add notes for ${TAG} [skip ci]"
+          git push origin "${CUR_BRANCH}"
 
       - name: Create/update GitHub Release and upload assets
         uses: softprops/action-gh-release@v2
