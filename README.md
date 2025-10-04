@@ -1,6 +1,7 @@
 # pkicli
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
+
 `pkicli` is a small command‑line tool to manage X.509 PKI state stored in **AWS S3** with secrets in **AWS Secrets Manager**.
 It is **generic** (not Kubernetes‑specific) and aims to be safe, explicit, and easy to automate.
 
@@ -140,8 +141,6 @@ See the [LICENSE.md](LICENSE.md) file for the full text of the MIT License.
 
 ## Authors
 
-**Rafał Masiarek** – original author & maintainer  
-- 🌐 [masiarek.pl](https://masiarek.pl)  
-- 🐙 [github.com/rafalmasiarek](https://github.com/rafalmasiarek)
+**Rafał Masiarek** [🌐](https://masiarek.pl)  [🐙](https://github.com/rafalmasiarek) [📧](mailto:rafal@masiarek.pl) – original author & maintainer  
 
 Contributions are welcome! Feel free to open issues, submit pull requests, or suggest new features.
