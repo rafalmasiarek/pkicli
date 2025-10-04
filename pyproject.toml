@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pkicli"
+version = "0.2.0"
+description = "Minimal PKI CLI for S3 state and AWS Secrets Manager (universal schema)"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name="Your Org", email="devnull@example.com"}]
+dependencies = [
+  "boto3>=1.26.0",
+  "PyYAML>=6.0",
+  "python-dateutil>=2.8.2"
+]
+
+[project.scripts]
+pkicli = "pkicli.cli:main"
