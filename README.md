@@ -14,7 +14,7 @@ It is **generic** (not Kubernetes‑specific) and aims to be safe, explicit, and
 - Python 3.9+
 - `openssl` in PATH (for issuing/renewing certs and CA bootstrap/renewal)
 - AWS credentials with permissions for S3 + Secrets Manager
-- Python packages (installed automatically via pip): `boto3`, `PyYAML`, `python-dateutil`
+- Python packages: `boto3`, `PyYAML`, `python-dateutil`
 
 ## Install
 
@@ -39,8 +39,8 @@ pkicli   --region eu-central-1
          [--state-prefix pki/state]   [--output json|table|yaml]   <command> ...
 ```
 
-- If `--state-prefix` is omitted, the default is `pki/state`.
-- If provided, `--state-prefix` **fully overrides** the default.
+- If `--state-prefix` is omitted, default is `pki/state`.
+- If provided, it **fully overrides** the default.
 
 ## Commands
 
@@ -53,45 +53,65 @@ pkicli ca list --region eu-central-1 --state-bucket <bucket> --output table
 
 Show a CA (reads `<prefix>/<name>.json`):
 ```bash
-pkicli ca show --name k8s-ca --region eu-central-1 --state-bucket <bucket> --output table
+pkicli ca show --name my-ca --region eu-central-1 --state-bucket <bucket> --output table
 ```
 
-Show CA history:
+History:
 ```bash
-pkicli ca history --name k8s-ca --region eu-central-1 --state-bucket <bucket> --output table
+pkicli ca history --name my-ca --region eu-central-1 --state-bucket <bucket> --output table
 ```
 
-Initialize a new CA (writes CA JSON to S3, stores cert/key in SM, updates inventory):
+Initialize a new CA (stores crt+key in SM, state in S3, updates inventory):
 ```bash
-pkicli ca init   --name my-ca   --subject-cn "My Root CA"   --subject-o  "Example Org"   --days 3650   --key-size 4096   --tags prod --tags team:security   --description "Primary CA"   --sm-prefix company/prod   --yes   --region eu-central-1   --state-bucket <bucket>
+pkicli ca init --name my-ca --subject-cn "Example Root CA" --subject-o "Example Org" \
+  --days 3650 --key-size 4096 --tags prod --tags team:security \
+  --description "Primary CA" --sm-prefix company/prod \
+  --yes --region eu-central-1 --state-bucket <bucket>
 ```
 
 Renew an existing CA (rotate CA cert/key, snapshot previous, update inventory):
 ```bash
-pkicli ca renew   --name my-ca   --days 3650   --key-size 4096   --reason "planned-rotation"   --yes   --region eu-central-1   --state-bucket <bucket>
+pkicli ca renew --name my-ca --days 3650 --key-size 4096 --reason "planned-rotation" \
+  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+```
+
+**Export CA bundle** (optionally include PEMs from SM):
+```bash
+pkicli ca export --name my-ca --with-secrets --file ./my-ca.bundle.json \
+  --region eu-central-1 --state-bucket <bucket>
+```
+
+**Import CA bundle** (writes CA state, stores PEMs if present):
+```bash
+pkicli ca import --file ./my-ca.bundle.json --yes \
+  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
 ```
 
 ### Certificates
 
-List certificates (from inventory; optional filter by days to expiry):
+List certificates:
 ```bash
 pkicli cert list --region eu-central-1 --state-bucket <bucket> --output table
 pkicli cert list --expiring-in 30 --region eu-central-1 --state-bucket <bucket> --output table
 ```
 
-Show one certificate (reads `<prefix>/<name>.json`):
+Show one certificate:
 ```bash
-pkicli cert show admin --region eu-central-1 --state-bucket <bucket> --output table
+pkicli cert show app-server-1 --region eu-central-1 --state-bucket <bucket> --output table
 ```
 
-Issue a new certificate (generic; SAN can be repeated; always stores cert/key in SM and writes state to S3):
+**Issue** a certificate (SM+S3):
 ```bash
-pkicli cert issue   --name app-server-1   --subject-cn "app.example.com"   --subject-o  "Example Org"   --san app.example.com --san 10.0.1.10   --key-algo rsa --key-size 4096   --validity-days 825   --ca my-ca   --sm-prefix company/prod   --tags prod --description "Frontend TLS"   --yes   --region eu-central-1   --state-bucket <bucket>
+pkicli cert issue --name app-server-1 --subject-cn app.example.com --subject-o "Example Org" \
+  --san app.example.com --san 10.0.1.10 --key-algo rsa --key-size 4096 --validity-days 825 \
+  --ca-name my-ca --sm-prefix company/prod --tags prod --description "Frontend TLS" \
+  --region eu-central-1 --state-bucket <bucket>
 ```
 
-Renew an existing certificate (reissues with the same Subject and SAN set):
+**Renew** an existing certificate (reissue preserving Subject & SAN):
 ```bash
-pkicli cert renew   app-server-1   --validity-days 825   --yes   --region eu-central-1   --state-bucket <bucket>
+pkicli cert renew app-server-1 --validity-days 825 --key-size 4096 \
+  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
 ```
 
 Import an existing cert/key (PEM) and write a state JSON for it:
@@ -105,15 +125,14 @@ pkicli cert import   --name legacy-api   --subject-cn "legacy-api"   --subject-o
 s3://<STATE_BUCKET>/<STATE_PREFIX>/
   ├── cert-inventory.json
   ├── <ca>.json
-  ├── <ca>@<TIMESTAMP>.json
+  ├── <ca>@<TIMESTAMP>.json  # snapshots on CA rotation/import
   └── <cert-name>.json
 ```
 
 Inventory contains:
 ```json
 {
-  "cas": [
-    {"name":"my-ca","version":1,"crt_arn":"...","key_arn":"...","state_s3":"s3://.../my-ca.json"}
+  "cas": [    {"name":"my-ca","version":1,"crt_arn":"...","key_arn":"...","state_s3":"s3://.../my-ca.json"}
   ],
   "certs": [
     {"name":"app-server-1", "ca":{"name":"my-ca","version":1,"state_s3":"s3://.../my-ca.json"}, "metadata":{ "...": "..." }, ...}
