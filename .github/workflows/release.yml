@@ -1,54 +1,229 @@
-name: Build & Release Python package
+name: Bump, Build & Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'patch | minor | major | explicit (e.g. 0.2.3)'
+        required: true
+        default: 'patch'
 
 permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  bump-build-release:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
+          fetch-depth: 0   # we need tags and full history for notes
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: |
-            **/pyproject.toml
-            **/requirements*.txt
+
+      - name: Compute next version and update pyproject.toml
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          INPUT="${{ github.event.inputs.bump }}"
+
+          # Read current project version from pyproject.toml
+          CURR="$(python - <<'PY'
+import re, sys, pathlib
+p = pathlib.Path("pyproject.toml").read_text()
+m = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', p, flags=re.M)
+if not m: sys.exit("Version not found in pyproject.toml")
+print(m.group(1))
+PY
+)"
+          echo "Current version: ${CURR}"
+
+          # Decide next version
+          if [[ "$INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            NEXT="$INPUT"
+          else
+            IFS='.' read -r MA MI PA <<<"$CURR"
+            case "$INPUT" in
+              patch) PA=$((PA+1));;
+              minor) MI=$((MI+1)); PA=0;;
+              major) MA=$((MA+1)); MI=0; PA=0;;
+              *) echo "Invalid bump: $INPUT" >&2; exit 1;;
+            esac
+            NEXT="${MA}.${MI}.${PA}"
+          fi
+
+          echo "Next version: ${NEXT}"
+          echo "next=${NEXT}" >> "$GITHUB_OUTPUT"
+
+          # In-place replace in pyproject.toml
+          python - <<'PY'
+import re, pathlib, os
+pp = pathlib.Path("pyproject.toml")
+text = pp.read_text()
+nextv = os.environ["NEXT"]
+new = re.sub(r'(^\s*version\s*=\s*")([^"]+)(".*$)', r'\1'+nextv+r'\3', text, flags=re.M)
+pp.write_text(new)
+PY
+        env:
+          NEXT: ${{ steps.bump.outputs.next }}
+
+      - name: Commit and tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEXT="${{ steps.bump.outputs.next }}"
+
+          # Configure bot identity
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit the version bump and tag it
+          git add pyproject.toml
+          git commit -m "chore(release): bump version to ${NEXT}"
+          git tag -a "v${NEXT}" -m "v${NEXT}"
+
+          # Push commit and tag
+          git push --follow-tags
+
+      - name: Verify project version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.bump.outputs.next }}"
+          PROJ="$(python - <<'PY'
+import re, pathlib, sys
+p = pathlib.Path("pyproject.toml").read_text()
+import re
+m = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', p, flags=re.M)
+print(m.group(1))
+PY
+)"
+          if [[ "v${PROJ}" != "${TAG}" ]]; then
+            echo "Version mismatch: tag ${TAG} vs project ${PROJ}" >&2
+            exit 1
+          fi
+          echo "Tag and project version match: ${TAG}"
+
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build twine tomli
-      - name: Verify project version matches tag
-        run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          PKG_VER=$(python -c "import pathlib, tomli; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
-          [ "$PKG_VER" = "$TAG" ] || { echo "Version mismatch: tag v$TAG vs project $PKG_VER"; exit 1; }
-      - name: Build dist
+          pip install build twine
+
+      - name: Build distribution (sdist & wheel)
         run: |
           python -m build
           ls -lh dist/
-      - name: Twine check
-        run: twine check dist/*
-      - name: Checksums
+
+      - name: Verify metadata with twine
+        run: |
+          twine check dist/*
+
+      - name: Generate checksums
         run: |
           cd dist
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: python-dist
           path: dist/*
-      - uses: softprops/action-gh-release@v2
+
+      # ===== Release notes (Conventional Commits) =====
+      - name: Generate release notes (Conventional Commits)
+        id: relnotes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          CUR_TAG="v${{ steps.bump.outputs.next }}"   # we just created this
+          # previous tag = the tag just before CUR_TAG in semver sort
+          PREV_TAG="$(git tag --list --sort=-v:refname | awk -v cur="$CUR_TAG" '
+            $0==cur {seen=1; next} seen==1 {print; exit}
+          ')"
+
+          RANGE=""
+          if [[ -n "$PREV_TAG" ]]; then
+            RANGE="${PREV_TAG}..${CUR_TAG}"
+          else
+            RANGE="${CUR_TAG}"
+          fi
+
+          COMMITS="$(git log --no-merges --pretty=format:'%s (%h)' "$RANGE" || true)"
+
+          FEAT=(); FIX=(); PERF=(); DOCS=(); CHORE=(); REFACTOR=(); BREAKING=()
+
+          while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            if [[ "$line" =~ BREAKING[[:space:]]CHANGE ]]; then
+              BREAKING+=("$line")
+            elif [[ "$line" =~ ^feat(\(.*\))?: ]]; then
+              FEAT+=("$line")
+            elif [[ "$line" =~ ^fix(\(.*\))?: ]]; then
+              FIX+=("$line")
+            elif [[ "$line" =~ ^perf(\(.*\))?: ]]; then
+              PERF+=("$line")
+            elif [[ "$line" =~ ^docs(\(.*\))?: ]]; then
+              DOCS+=("$line")
+            elif [[ "$line" =~ ^refactor(\(.*\))?: ]]; then
+              REFACTOR+=("$line")
+            else
+              CHORE+=("$line")
+            fi
+          done <<< "$COMMITS"
+
+          OUT=RELEASE_NOTES.md
+          {
+            echo "# ${CUR_TAG}"
+            echo
+            if [[ -n "$PREV_TAG" ]]; then
+              echo "_Changes since_ **${PREV_TAG}**"
+              echo
+            fi
+
+            print_section () {
+              local title="$1"; shift
+              local -n arr=$1
+              if (( ${#arr[@]} )); then
+                echo "## ${title}"
+                for item in "${arr[@]}"; do
+                  echo " - ${item}" | sed -E 's/^(feat|fix|perf|docs|chore|refactor)(\([^)]+\))?:[[:space:]]+//'
+                done
+                echo
+              fi
+            }
+
+            print_section "⚠️ Breaking Changes" BREAKING
+            print_section "✨ Features"          FEAT
+            print_section "🐛 Fixes"             FIX
+            print_section "🏎️ Performance"       PERF
+            print_section "🧰 Refactors"         REFACTOR
+            print_section "📝 Docs"              DOCS
+            print_section "🧹 Chores & Others"   CHORE
+
+            echo "---"
+            echo "_Generated from Conventional Commits. Range:_ \`${RANGE}\`"
+          } > "$OUT"
+
+          echo "notes=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Create/update GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
-          generate_release_notes: true
+          tag_name: v${{ steps.bump.outputs.next }}
+          name: v${{ steps.bump.outputs.next }}
+          files: |
+            dist/*
+          body_path: ${{ steps.relnotes.outputs.notes }}
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
