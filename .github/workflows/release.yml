@@ -68,7 +68,7 @@ jobs:
           pp = pathlib.Path("pyproject.toml")
           text = pp.read_text()
           nextv = os.environ["NEXT"]
-          new = re.sub(r'(^\s*version\s*=\s*")([^"]+)(".*$)', r'\1'+nextv+r'\3', text, flags=re.M)
+          new = re.sub(r'(^\s*version\s*=\s*")([^"]+)(".*$)', r'\g<1>' + nextv + r'\g<3>', text, flags=re.M)
           pp.write_text(new)
           PY
         env:
