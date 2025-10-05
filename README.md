@@ -3,7 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 
 `pkicli` is a small command‑line tool to manage X.509 PKI state stored in **AWS S3** with secrets in **AWS Secrets Manager**.
-It is **generic** (not Kubernetes‑specific) and aims to be safe, explicit, and easy to automate.
+
+It is a **generic solution** - although I originally created it to manage certificates in my own k8s cluster, it is universal and can be used anywhere you need to manage internal SSL certificates in a simple and reasonably automated way.
 
 - State lives in S3 as JSON (per‑CA, per‑certificate, and a single **cert-inventory.json**).
 - Secrets (PEM certs/keys or arbitrary strings) live in Secrets Manager as **plain SecretString** (no extra base64).
