@@ -34,22 +34,25 @@ This installs the `pkicli` entry point (e.g. `/usr/local/bin/pkicli`).
 Global options:
 
 ```bash
-pkicli   --region eu-central-1   
-         --state-bucket <bucket-name>   
-         [--state-prefix pki/state]   [--output json|table|yaml]   <command> ...
+pkicli   --region eu-central-1          --state-bucket <bucket-name>          [--state-prefix pki/state]          [--sm-prefix <path/prefix>]          [--output json|table|yaml]          [--target-version v1]          <command> ...
 ```
 
-- If `--state-prefix` is omitted, default is `pki/state`.
-- If provided, it **fully overrides** the default.
+- If `--state-prefix` is omitted, default is `pki/state`. If provided, it **fully overrides** the default.
+- `--target-version` is the **schema** version (default `v1`).
+- Output defaults to `json` unless `--output table` is provided.
+
+---
 
 ## Commands
 
 ### CA
 
-List CAs (from `cert-inventory.json` → `.cas[]`):
+List CAs (from inventory). Deleted CAs are **hidden** by default:
 ```bash
 pkicli ca list --region eu-central-1 --state-bucket <bucket> --output table
 pkicli ca list --expiring-in 90 --region eu-central-1 --state-bucket <bucket> --output table
+# Show deleted as well:
+pkicli ca list --include-deleted --region eu-central-1 --state-bucket <bucket> --output table
 ```
 
 Show a CA (reads `<prefix>/<name>.json`):
@@ -64,33 +67,36 @@ pkicli ca history --name my-ca --region eu-central-1 --state-bucket <bucket> --o
 
 Initialize a new CA (stores crt+key in SM, state in S3, updates inventory):
 ```bash
-pkicli ca init --name my-ca --subject-cn "Example Root CA" --subject-o "Example Org" \
-  --days 3650 --key-size 4096 --tags prod --tags team:security \
-  --description "Primary CA" --sm-prefix company/prod \
-  --yes --region eu-central-1 --state-bucket <bucket>
+pkicli ca init --name my-ca --subject-cn "Example Root CA" --subject-o "Example Org"   --days 3650 --key-size 4096 --tags prod --tags team:security   --description "Primary CA" --sm-prefix company/prod   --region eu-central-1 --state-bucket <bucket>
 ```
 
 Renew an existing CA (rotate CA cert/key, snapshot previous, update inventory):
 ```bash
-pkicli ca renew --name my-ca --days 3650 --key-size 4096 --reason "planned-rotation" \
-  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+pkicli ca renew --name my-ca --days 3650 --key-size 4096 --reason "planned-rotation"   --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+```
+
+Soft‑delete (revoke) a CA:
+```bash
+# Soft-delete: tag 'deleted', status 'revoked', add history entry, schedule SM deletion (default 30 days)
+pkicli ca revoke --name my-ca --retention-days 30   --region eu-central-1 --state-bucket <bucket>
+
+# Hard delete: remove state + inventory + SM secrets immediately (irreversible)
+pkicli ca revoke --name my-ca --hard   --region eu-central-1 --state-bucket <bucket>
 ```
 
 **Export CA bundle** (optionally include PEMs from SM):
 ```bash
-pkicli ca export --name my-ca --with-secrets --file ./my-ca.bundle.json \
-  --region eu-central-1 --state-bucket <bucket>
+pkicli ca export --name my-ca --with-secrets --file ./my-ca.bundle.json   --region eu-central-1 --state-bucket <bucket>
 ```
 
 **Import CA bundle** (writes CA state, stores PEMs if present):
 ```bash
-pkicli ca import --file ./my-ca.bundle.json --yes \
-  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+pkicli ca import --file ./my-ca.bundle.json   --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
 ```
 
 ### Certificates
 
-List certificates:
+List certificates (deleted/revoked are hidden by default):
 ```bash
 pkicli cert list --region eu-central-1 --state-bucket <bucket> --output table
 pkicli cert list --expiring-in 30 --region eu-central-1 --state-bucket <bucket> --output table
@@ -103,70 +109,46 @@ pkicli cert show app-server-1 --region eu-central-1 --state-bucket <bucket> --ou
 
 **Issue** a certificate (SM+S3):
 ```bash
-pkicli cert issue --name app-server-1 --subject-cn app.example.com --subject-o "Example Org" \
-  --san app.example.com --san 10.0.1.10 --key-algo rsa --key-size 4096 --validity-days 825 \
-  --ca-name my-ca --sm-prefix company/prod --tags prod --description "Frontend TLS" \
-  --region eu-central-1 --state-bucket <bucket>
+pkicli cert issue --name app-server-1 --subject-cn app.example.com --subject-o "Example Org"   --san app.example.com --san 10.0.1.10 --key-algo rsa --key-size 4096 --validity-days 825   --ca-name my-ca --sm-prefix company/prod --tags prod --description "Frontend TLS"   --region eu-central-1 --state-bucket <bucket>
 ```
 
 **Renew** an existing certificate (reissue preserving Subject & SAN):
 ```bash
-pkicli cert renew app-server-1 --validity-days 825 --key-size 4096 \
-  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+pkicli cert renew app-server-1 --validity-days 825 --key-size 4096   --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+```
+
+Soft‑delete (revoke) a certificate:
+```bash
+# Soft-delete: tag 'deleted', status 'revoked', add history entry, schedule SM deletion (default 30 days)
+pkicli cert revoke --name app-server-1 --retention-days 30   --region eu-central-1 --state-bucket <bucket>
+
+# Hard delete: remove state + inventory + SM secrets immediately (irreversible)
+pkicli cert revoke --name app-server-1 --hard   --region eu-central-1 --state-bucket <bucket>
 ```
 
 **Export** certificate bundle (optionally include PEMs):
 ```bash
-pkicli cert export app-server-1 --with-secrets --file ./app-server-1.bundle.json \
-  --region eu-central-1 --state-bucket <bucket>
+pkicli cert export app-server-1 --with-secrets --file ./app-server-1.bundle.json   --region eu-central-1 --state-bucket <bucket>
 ```
 
 **Import** certificate (from bundle or PEM files):
 ```bash
 # from bundle
-pkicli cert import --from-bundle ./app-server-1.bundle.json \
-  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+pkicli cert import --from-bundle ./app-server-1.bundle.json   --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
 
 # from PEMs
-pkicli cert import --from-files \
-  --name legacy-api --subject-cn legacy-api --subject-o "Example Org" \
-  --san legacy-api --san 10.0.2.15 \
-  --crt ./legacy-api.crt --key ./legacy-api.key \
-  --ca-name my-ca --tags legacy --description "Migrated" \
-  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+pkicli cert import --from-files   --name legacy-api --subject-cn legacy-api --subject-o "Example Org"   --san legacy-api --san 10.0.2.15   --crt ./legacy-api.crt --key ./legacy-api.key   --ca-name my-ca --tags legacy --description "Migrated"   --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
 ```
 
-Full example of `app-server-1.bundle.json`:
+### Inventory rebuild
+
+Rebuild the inventory using objects found under the configured S3 prefix. Only **active** (non‑revoked) certs are indexed.
+```bash
+pkicli cert rebuild --region eu-central-1 --state-bucket <bucket> [--state-prefix pki/state] [--target-version v1]
 ```
-{
-  "version": "v1-bundle",
-  "name": "app-server-1",
-  "subject": {
-    "CN": "app.example.com",
-    "O": "Example Org"
-  },
-  "san": [
-    "app.example.com",
-    "10.0.1.10"
-  ],
-  "pem": {
-    "cert": "-----BEGIN CERTIFICATE-----\nMIIC...snip...\n-----END CERTIFICATE-----\n",
-    "key": "-----BEGIN PRIVATE KEY-----\nMIIE...snip...\n-----END PRIVATE KEY-----\n",
-    "chain": [
-      "-----BEGIN CERTIFICATE-----\nMIID...intermediate...\n-----END CERTIFICATE-----\n",
-      "-----BEGIN CERTIFICATE-----\nMIIF...root...\n-----END CERTIFICATE-----\n"
-    ]
-  },
-  "ca": {
-    "name": "my-ca",
-    "pem": {
-      "cert": "-----BEGIN CERTIFICATE-----\nMIIF...root-ca...\n-----END CERTIFICATE-----\n"
-    }
-  },
-  "tags": ["prod", "tls"],
-  "description": "Imported from legacy system (2025-10-04)"
-}
-```
+
+---
+
 ## S3 layout
 
 ```
@@ -180,22 +162,45 @@ s3://<STATE_BUCKET>/<STATE_PREFIX>/
 Inventory contains:
 ```json
 {
-  "cas": [    {"name":"my-ca","version":1,"crt_arn":"...","key_arn":"...","state_s3":"s3://.../my-ca.json"}
+  "cas": [
+    {"name":"my-ca","version":1,"crt_arn":"...","key_arn":"...","state_s3":"s3://.../my-ca.json"}
   ],
   "certs": [
-    {"name":"app-server-1", "ca":{"name":"my-ca","version":1,"state_s3":"s3://.../my-ca.json"}, "metadata":{ "...": "..." }, ...}
+    {"name":"app-server-1","ca":{"name":"my-ca","version":1,"state_s3":"s3://.../my-ca.json"},"metadata":{"...":"..."}}
   ],
   "updated_at": "RFC3339Z",
   "s3_meta": {"version_id":"...","etag":"..."}
 }
 ```
 
-## Notes
+---
 
-- All mutating commands require `--yes` to proceed.
-- The tool prefers plain strings in Secrets Manager. PEM values are stored as `SecretString` without extra base64.
-- Table output is available for the common read paths; JSON is the default output; YAML requires `PyYAML`.
-- The CLI is tolerant of legacy JSON fields; unknown keys are ignored.
+## Behavior & Guarantees
+
+- **Soft‑delete by default** for `ca revoke` / `cert revoke`:
+  - Adds `"status": "revoked"` and `"tags": ["deleted", ...]` to the state JSON.
+  - Writes a history/rotation entry.
+  - Schedules AWS Secrets Manager deletion (default **30 days**, override with `--retention-days N`).
+  - Keeps S3 state for traceability.
+- **Hard delete** (`--hard`) removes S3 state and calls Secrets Manager `delete_secret(..., ForceDeleteWithoutRecovery=True)`.
+- **Recreate while scheduled for deletion**: if a new CA/cert tries to reuse the same secret name that is scheduled for deletion,
+  pkicli will **restore the secret**, update its value, and continue.
+- **Listing**: `cert list` and `ca list` **hide deleted/revoked** items by default.
+- **Schema vs rotation version**:
+  - Schema version is **`v1`** (serde adapter).  
+  - CA/cert rotation version is an **integer** stored separately (`ca_version` for CA IR, or per‑object `version` in inventory CA refs).
+
+---
+
+## Troubleshooting
+
+- *"You can't perform this operation because the secret is marked for deletion"*  
+  The secret name is scheduled for deletion in Secrets Manager. Re‑running a create/issue operation will trigger an automatic **restore**; alternatively, restore manually from the AWS Console.
+- *Validation errors about `pkicli.schemas.ir/1`*  
+  Ensure the validator reads **schema** version (`v1`), not IR version (`ir/1`). The serde layer handles conversions.
+- OpenSSL failures on CA renew/issue: check that `openssl` is present in PATH and arguments (key size, days, SANs) are valid.
+
+---
 
 ## License
 
