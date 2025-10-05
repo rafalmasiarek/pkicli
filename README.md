@@ -49,6 +49,7 @@ pkicli   --region eu-central-1
 List CAs (from `cert-inventory.json` → `.cas[]`):
 ```bash
 pkicli ca list --region eu-central-1 --state-bucket <bucket> --output table
+pkicli ca list --expiring-in 90 --region eu-central-1 --state-bucket <bucket> --output table
 ```
 
 Show a CA (reads `<prefix>/<name>.json`):
@@ -114,11 +115,58 @@ pkicli cert renew app-server-1 --validity-days 825 --key-size 4096 \
   --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
 ```
 
-Import an existing cert/key (PEM) and write a state JSON for it:
+**Export** certificate bundle (optionally include PEMs):
 ```bash
-pkicli cert import   --name legacy-api   --subject-cn "legacy-api"   --subject-o "Example Org"   --san legacy-api --san 10.0.2.15   --crt ./legacy-api.crt --key ./legacy-api.key   --ca my-ca   --sm-prefix company/prod   --tags legacy   --description "Migrated from old tooling"   --yes   --region eu-central-1   --state-bucket <bucket>
+pkicli cert export app-server-1 --with-secrets --file ./app-server-1.bundle.json \
+  --region eu-central-1 --state-bucket <bucket>
 ```
 
+**Import** certificate (from bundle or PEM files):
+```bash
+# from bundle
+pkicli cert import --from-bundle ./app-server-1.bundle.json \
+  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+
+# from PEMs
+pkicli cert import --from-files \
+  --name legacy-api --subject-cn legacy-api --subject-o "Example Org" \
+  --san legacy-api --san 10.0.2.15 \
+  --crt ./legacy-api.crt --key ./legacy-api.key \
+  --ca-name my-ca --tags legacy --description "Migrated" \
+  --sm-prefix company/prod --region eu-central-1 --state-bucket <bucket>
+```
+
+Full example of `app-server-1.bundle.json`:
+```
+{
+  "version": "v1-bundle",
+  "name": "app-server-1",
+  "subject": {
+    "CN": "app.example.com",
+    "O": "Example Org"
+  },
+  "san": [
+    "app.example.com",
+    "10.0.1.10"
+  ],
+  "pem": {
+    "cert": "-----BEGIN CERTIFICATE-----\nMIIC...snip...\n-----END CERTIFICATE-----\n",
+    "key": "-----BEGIN PRIVATE KEY-----\nMIIE...snip...\n-----END PRIVATE KEY-----\n",
+    "chain": [
+      "-----BEGIN CERTIFICATE-----\nMIID...intermediate...\n-----END CERTIFICATE-----\n",
+      "-----BEGIN CERTIFICATE-----\nMIIF...root...\n-----END CERTIFICATE-----\n"
+    ]
+  },
+  "ca": {
+    "name": "my-ca",
+    "pem": {
+      "cert": "-----BEGIN CERTIFICATE-----\nMIIF...root-ca...\n-----END CERTIFICATE-----\n"
+    }
+  },
+  "tags": ["prod", "tls"],
+  "description": "Imported from legacy system (2025-10-04)"
+}
+```
 ## S3 layout
 
 ```

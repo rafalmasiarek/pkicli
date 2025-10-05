@@ -18,3 +18,9 @@ dependencies = [
 
 [project.scripts]
 pkicli = "pkicli.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"pkicli.schemas.v1" = ["*.json"]

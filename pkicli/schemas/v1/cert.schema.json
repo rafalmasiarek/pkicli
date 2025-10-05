@@ -1,0 +1,226 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/pkicli/v1/cert.schema.json",
+    "title": "pkicli v1 - Certificate document",
+    "type": "object",
+    "required": [
+        "version",
+        "name",
+        "subject",
+        "metadata",
+        "updated_at"
+    ],
+    "properties": {
+        "version": {
+            "const": "v1"
+        },
+        "name": {
+            "type": "string"
+        },
+        "subject": {
+            "type": "object",
+            "required": [
+                "CN"
+            ],
+            "properties": {
+                "CN": {
+                    "type": "string"
+                },
+                "O": {
+                    "type": "string"
+                }
+            },
+            "additionalProperties": true
+        },
+        "metadata": {
+            "type": "object",
+            "required": [
+                "not_before",
+                "not_after",
+                "serial",
+                "sha256",
+                "sig_alg",
+                "pubkey_algo",
+                "pubkey_bits",
+                "skid",
+                "akid"
+            ],
+            "properties": {
+                "not_before": {
+                    "type": "string"
+                },
+                "not_after": {
+                    "type": "string"
+                },
+                "serial": {
+                    "type": "string"
+                },
+                "sha256": {
+                    "type": "string"
+                },
+                "sig_alg": {
+                    "type": "string"
+                },
+                "pubkey_algo": {
+                    "type": "string"
+                },
+                "pubkey_bits": {
+                    "type": "integer"
+                },
+                "skid": {
+                    "type": "string"
+                },
+                "akid": {
+                    "type": "string"
+                },
+                "issuer_cn": {
+                    "type": "string"
+                },
+                "subject_cn": {
+                    "type": "string"
+                },
+                "san": {
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "additionalProperties": true
+        },
+        "ca": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "crt_arn": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "key_arn": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "state_s3": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": true
+        },
+        "cert_secret_arn": {
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "key_secret_arn": {
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "secret_arn": {
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "secrets_manager_meta": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "san": {
+            "type": [
+                "array",
+                "null"
+            ],
+            "items": {
+                "type": "string"
+            }
+        },
+        "key": {
+            "type": "object",
+            "properties": {
+                "algo": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": true
+        },
+        "validity_days": {
+            "type": [
+                "integer",
+                "null"
+            ]
+        },
+        "rotation": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                },
+                "last_update": {
+                    "type": "string"
+                }
+            },
+            "additionalProperties": true
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "description": {
+            "type": "string"
+        },
+        "updated_at": {
+            "type": "string"
+        },
+        "s3_meta": {
+            "type": "object",
+            "properties": {
+                "version_id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "etag": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": true
+        }
+    },
+    "additionalProperties": true
+}

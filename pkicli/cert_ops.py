@@ -1,26 +1,28 @@
-# cert_ops.py
-# Certificates: list/show + issue/renew/export/import
-import json, os, sys, tempfile, subprocess, boto3, datetime
+import json, os, sys, tempfile, subprocess, boto3
+from typing import List
 from .aws_s3 import S3Client
 from .render import fmt_table
 from .utils import safe_get, days_until, now_utc_str
-from typing import List
+from .serde.io import read_inventory, write_inventory, read_ca, read_cert, write_cert
 
 def cert_list(s3: S3Client, expiring_in: int, out: str):
-    inv = s3.get_json(s3.key("cert-inventory.json"))
+    inv = read_inventory(s3)
     certs = inv.get("certs") or []
     rows_data = []
     for c in certs:
         na = safe_get(c, "metadata.not_after", "")
         if expiring_in is not None:
-            if not na: continue
-            if days_until(na) > expiring_in: continue
+            if not na:
+                continue
+            if days_until(na) > expiring_in:
+                continue
         rows_data.append({
             "name": c.get("name",""),
             "not_after": na,
             "ca": safe_get(c, "ca.name", ""),
             "cert_arn": c.get("cert_secret_arn","") or "",
             "key_arn": c.get("key_secret_arn","") or "",
+            "orphaned_ca": ( (c.get("ca") or {}).get("name") not in {ref.get("name") for ref in (inv.get("cas") or [])} ),
         })
     if out == "table":
         if not rows_data:
@@ -34,7 +36,7 @@ def cert_list(s3: S3Client, expiring_in: int, out: str):
         print(json.dumps(rows_data, indent=2))
 
 def cert_show(s3: S3Client, name: str, out: str):
-    doc = s3.get_json(s3.key(f"{name}.json"))
+    doc = read_cert(s3, name)
     if out == "table":
         rows = [["FIELD","VALUE"]]
         rows += [
@@ -58,7 +60,78 @@ def cert_show(s3: S3Client, name: str, out: str):
     else:
         print(json.dumps(doc, indent=2))
 
-# ---------- helpers ----------
+def cert_delete(
+    s3: S3Client,
+    name: str,
+    region: str,
+    sm_prefix: str,
+    target_version: str,
+    hard: bool = False,
+    retention_days: int = 30,
+    out: str = "json",
+):
+    """
+    Soft-delete by default:
+      - remove cert from inventory index,
+      - mark state as revoked and add 'deleted' tag,
+      - schedule Secrets Manager deletion in N days (default 30).
+    Hard-delete (--hard):
+      - remove from index, delete state object, force-delete secrets immediately.
+    """
+    # read current state
+    doc = read_cert(s3, name)
+
+    # schedule/force delete secrets in Secrets Manager
+    sm = boto3.client("secretsmanager", region_name=region)
+    def _del_secret(arn: str):
+        if not arn:
+            return
+        if hard:
+            sm.delete_secret(SecretId=arn, ForceDeleteWithoutRecovery=True)
+        else:
+            # AWS requires 7..30 days; caller can override via retention_days
+            days = max(7, min(30, int(retention_days or 30)))
+            sm.delete_secret(SecretId=arn, RecoveryWindowInDays=days)
+
+    _del_secret(doc.get("cert_secret_arn", ""))
+    _del_secret(doc.get("key_secret_arn", ""))
+
+    now = now_utc_str()
+
+    if hard:
+        # hard delete: remove state object and index entry
+        s3c = boto3.client("s3")
+        s3c.delete_object(Bucket=s3.bucket, Key=s3.key(f"{name}.json"))
+        inv = read_inventory(s3)
+        inv["certs"] = [c for c in (inv.get("certs") or []) if c.get("name") != name]
+        inv.setdefault("cas", inv.get("cas", []))
+        inv["updated_at"] = now
+        write_inventory(s3, inv, schema_version=target_version)
+    else:
+        # soft delete: update state (revoked + tag 'deleted') and update index
+        doc["rotation"] = dict(doc.get("rotation") or {})
+        doc["rotation"]["status"] = "revoked"
+        doc["rotation"]["last_update"] = now
+        tags = list(doc.get("tags") or [])
+        if "deleted" not in tags:
+            tags.append("deleted")
+        doc["tags"] = tags
+        doc["updated_at"] = now
+        write_cert(s3, doc, schema_version=target_version)
+
+        inv = read_inventory(s3)
+        inv["certs"] = [c for c in (inv.get("certs") or []) if c.get("name") != name]
+        inv.setdefault("cas", inv.get("cas", []))
+        inv["updated_at"] = now
+        write_inventory(s3, inv, schema_version=target_version)
+
+    if out == "table":
+        print(fmt_table([["RESULT", "DETAIL"], ["deleted" if hard else "scheduled", name]]))
+    else:
+        print(json.dumps(
+            {"result": "deleted" if hard else "scheduled", "name": name, "hard": hard, "retention_days": None if hard else retention_days},
+            indent=2
+        ))
 
 def _run(*args: str) -> str:
     r = subprocess.run(["openssl", *args], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -117,7 +190,8 @@ def _build_extfile(sans: List[str]) -> str:
         i=1
         for s in sans:
             s = (s or "").strip()
-            if not s: continue
+            if not s:
+                continue
             if s.replace(".","").isdigit() and s.count(".")==3:
                 lines.append(f"IP.{i} = {s}")
             else:
@@ -135,14 +209,19 @@ def _sm_put_plain(sm, name: str, value: str) -> str:
     except sm.exceptions.ResourceExistsException:
         sm.put_secret_value(SecretId=name, SecretString=value)
         return sm.describe_secret(SecretId=name)["ARN"]
+    except sm.exceptions.InvalidRequestException as e:
+        if "scheduled for deletion" in str(e).lower():
+            sm.restore_secret(SecretId=name)
+            sm.put_secret_value(SecretId=name, SecretString=value)
+            return sm.describe_secret(SecretId=name)["ARN"]
+        raise
 
-# ---------- ISSUE ----------
+def cert_issue(s3: S3Client, args, region: str, sm_prefix: str, target_version: str, out: str):
+    ca_doc = read_ca(s3, args.ca_name)
 
-def cert_issue(s3: S3Client, args, region: str, sm_prefix: str, out: str):
-    # load CA (must exist and have both crt_arn & key_arn)
-    ca_doc = s3.get_json(s3.key(f"{args.ca_name}.json"))
-    ca_crt_arn = safe_get(ca_doc,"secrets_manager.crt_arn","")
-    ca_key_arn = safe_get(ca_doc,"secrets_manager.key_arn","")
+    # IR paths
+    ca_crt_arn = safe_get(ca_doc, "secrets_manager.crt_arn", "")
+    ca_key_arn = safe_get(ca_doc, "secrets_manager.key_arn", "")
     if not (ca_crt_arn and ca_key_arn):
         raise SystemExit("CA does not have both crt_arn and key_arn in Secrets Manager.")
 
@@ -159,20 +238,17 @@ def cert_issue(s3: S3Client, args, region: str, sm_prefix: str, out: str):
         _write_tmp(ca_crt_path, ca_crt_pem)
         _write_tmp(ca_key_path, ca_key_pem)
 
-        # key & csr
         if args.key_algo != "rsa":
             raise SystemExit("Only RSA is supported currently.")
         subprocess.run(["openssl","genrsa","-out",key_path,str(args.key_size)], check=True)
         subj = f"/CN={args.subject_cn}" + (f"/O={args.subject_o}" if args.subject_o else "")
         subprocess.run(["openssl","req","-new","-key",key_path,"-out",csr_path,"-subj",subj], check=True)
 
-        # sign
         ext = _build_extfile(args.san or [])
         subprocess.run(["openssl","x509","-req","-in",csr_path,"-CA",ca_crt_path,"-CAkey",ca_key_path,
                         "-CAcreateserial","-out",crt_path,"-days",str(args.validity_days),
                         "-extensions","v3_req","-extfile",ext], check=True)
 
-        # metadata
         meta = _x509_meta_from_file(crt_path)
 
         base = (sm_prefix.rstrip("/") + "/") if sm_prefix else ""
@@ -181,16 +257,15 @@ def cert_issue(s3: S3Client, args, region: str, sm_prefix: str, out: str):
         cert_arn = _sm_put_plain(sm, cert_sm_name, open(crt_path).read())
         key_arn  = _sm_put_plain(sm, key_sm_name,  open(key_path).read())
 
-    # build per-cert JSON
     now = now_utc_str()
     state = {
-        "version": "v1",
+        "version": target_version,  # schema version
         "name": args.name,
         "subject": {"CN": args.subject_cn, "O": args.subject_o or ""},
         "metadata": meta,
         "ca": {
             "name": args.ca_name,
-            "version": int(safe_get(ca_doc,"ca.version",1) or 1),
+            "version": int(safe_get(ca_doc, "ca_version", 1) or 1),  # CA rotation counter from IR
             "crt_arn": ca_crt_arn,
             "key_arn": ca_key_arn,
             "state_s3": f"s3://{s3.bucket}/{s3.key(f'{args.ca_name}.json')}"
@@ -210,34 +285,27 @@ def cert_issue(s3: S3Client, args, region: str, sm_prefix: str, out: str):
         "updated_at": now
     }
 
-    # write per-cert state
-    s3.put_json_with_meta(s3.key(f"{args.name}.json"), state)
+    write_cert(s3, state, schema_version=target_version)
 
-    # update inventory
-    try:
-        inv = s3.get_json(s3.key("cert-inventory.json"))
-    except Exception:
-        inv = {}
-    certs = inv.get("certs", [])
-    certs = [c for c in certs if c.get("name") != args.name]
+    # Update inventory (dict-style)
+    inv = read_inventory(s3)
+    inv["version"] = target_version
+    certs = [c for c in inv.get("certs", []) if c.get("name") != args.name]
     certs.append(state)
     inv["certs"] = certs
     inv.setdefault("cas", inv.get("cas", []))
     inv["updated_at"] = now
-    s3.put_json_with_meta(s3.key("cert-inventory.json"), inv)
+    write_inventory(s3, inv, schema_version=target_version)
 
     if out == "table":
         print(fmt_table([["RESULT","DETAIL"],["issued", f"cert {args.name}"]]))
     else:
         print(json.dumps({"result":"issued","name":args.name}, indent=2))
 
-# ---------- RENEW ----------
-
-def cert_renew(s3: S3Client, args, region: str, sm_prefix: str, out: str):
+def cert_renew(s3: S3Client, args, region: str, sm_prefix: str, target_version: str, out: str):
     name = args.name
-    cur = s3.get_json(s3.key(f"{name}.json"))
-    class A:
-        pass
+    cur = read_cert(s3, name)
+    class A: ...
     a = A()
     a.name = name
     a.subject_cn = safe_get(cur,"subject.CN","")
@@ -249,12 +317,10 @@ def cert_renew(s3: S3Client, args, region: str, sm_prefix: str, out: str):
     a.ca_name = safe_get(cur,"ca.name","")
     a.tags = cur.get("tags",[])
     a.description = cur.get("description","")
-    cert_issue(s3, a, region, sm_prefix, out)
-
-# ---------- EXPORT ----------
+    cert_issue(s3, a, region, sm_prefix, target_version, out)
 
 def cert_export(s3: S3Client, name: str, out_file: str, with_secrets: bool, region: str):
-    bundle = s3.get_json(s3.key(f"{name}.json"))
+    bundle = read_cert(s3, name)
     if with_secrets:
         sm = boto3.client("secretsmanager", region_name=region)
         crt_arn = bundle.get("cert_secret_arn","")
@@ -269,24 +335,21 @@ def cert_export(s3: S3Client, name: str, out_file: str, with_secrets: bool, regi
     else:
         with open(out_file, "w") as f: f.write(data)
 
-# ---------- IMPORT ----------
-
-def cert_import(s3: S3Client, args, region: str, sm_prefix: str, out: str):
+def cert_import(s3: S3Client, args, region: str, sm_prefix: str, target_version: str, out: str):
     sm = boto3.client("secretsmanager", region_name=region)
     base = (sm_prefix.rstrip("/") + "/") if sm_prefix else ""
 
     if args.from_bundle:
-        # read bundle
-        if args.from_bundle == "-" or args.from_bundle == "/dev/stdin":
+        if args.from_bundle in ("-", "/dev/stdin"):
             bundle = json.load(sys.stdin)
         else:
             with open(args.from_bundle) as f:
                 bundle = json.load(f)
 
         name = bundle.get("name")
-        if not name: raise SystemExit("bundle missing 'name'")
+        if not name:
+            raise SystemExit("bundle missing 'name'")
 
-        # store PEMs if present (override ARNs)
         cert_arn = bundle.get("cert_secret_arn","")
         key_arn  = bundle.get("key_secret_arn","")
         if "crt_pem" in bundle:
@@ -294,25 +357,23 @@ def cert_import(s3: S3Client, args, region: str, sm_prefix: str, out: str):
         if "key_pem" in bundle:
             key_arn = _sm_put_plain(sm, f"{base}pki/{name}.key", bundle["key_pem"])
 
-        # normalize and write state
-        bundle.setdefault("version","v1")
         bundle["cert_secret_arn"] = cert_arn or bundle.get("cert_secret_arn","")
         bundle["key_secret_arn"]  = key_arn  or bundle.get("key_secret_arn","")
         bundle["updated_at"] = now_utc_str()
-        s3.put_json_with_meta(s3.key(f"{name}.json"), bundle)
+        bundle.setdefault("version", target_version)
 
-        # inventory
-        try:
-            inv = s3.get_json(s3.key("cert-inventory.json"))
-        except Exception:
-            inv = {}
-        certs = inv.get("certs", [])
-        certs = [c for c in certs if c.get("name") != name]
+        # Write cert (not inventory)
+        write_cert(s3, bundle, schema_version=target_version)
+
+        # Update inventory (dict-style)
+        inv = read_inventory(s3)
+        inv["version"] = target_version
+        certs = [c for c in inv.get("certs", []) if c.get("name") != name]
         certs.append(bundle)
         inv["certs"] = certs
         inv.setdefault("cas", inv.get("cas", []))
         inv["updated_at"] = now_utc_str()
-        s3.put_json_with_meta(s3.key("cert-inventory.json"), inv)
+        write_inventory(s3, inv, schema_version=target_version)
 
         if out == "table":
             print(fmt_table([["RESULT","DETAIL"],["imported", f"cert {name}"]]))
@@ -325,23 +386,21 @@ def cert_import(s3: S3Client, args, region: str, sm_prefix: str, out: str):
     if not (name and args.crt and args.key and args.subject_cn and args.ca_name):
         raise SystemExit("--from-files requires --name, --crt, --key, --subject-cn, --ca-name")
 
-    # store to SM
     cert_arn = _sm_put_plain(sm, f"{base}pki/{name}.crt", open(args.crt).read())
     key_arn  = _sm_put_plain(sm, f"{base}pki/{name}.key",  open(args.key).read())
 
-    # metadata & CA ref
     meta = _x509_meta_from_file(args.crt)
-    ca_doc = s3.get_json(s3.key(f"{args.ca_name}.json"))
+    ca_doc = read_ca(s3, args.ca_name)
     state = {
-        "version": "v1",
+        "version": target_version,  # schema version
         "name": name,
         "subject": {"CN": args.subject_cn, "O": args.subject_o or ""},
         "metadata": meta,
         "ca": {
             "name": args.ca_name,
-            "version": int(safe_get(ca_doc,"ca.version",1) or 1),
-            "crt_arn": safe_get(ca_doc,"secrets_manager.crt_arn",""),
-            "key_arn": safe_get(ca_doc,"secrets_manager.key_arn",""),
+            "version": int(safe_get(ca_doc, "ca_version", 1) or 1),
+            "crt_arn": safe_get(ca_doc, "secrets_manager.crt_arn", ""),
+            "key_arn": safe_get(ca_doc, "secrets_manager.key_arn", ""),
             "state_s3": f"s3://{s3.bucket}/{s3.key(f'{args.ca_name}.json')}"
         },
         "cert_secret_arn": cert_arn,
@@ -358,22 +417,5 @@ def cert_import(s3: S3Client, args, region: str, sm_prefix: str, out: str):
         "description": args.description or "",
         "updated_at": now_utc_str()
     }
-    s3.put_json_with_meta(s3.key(f"{name}.json"), state)
-
-    # inventory
-    try:
-        inv = s3.get_json(s3.key("cert-inventory.json"))
-    except Exception:
-        inv = {}
-    certs = inv.get("certs", [])
-    certs = [c for c in certs if c.get("name") != name]
-    certs.append(state)
-    inv["certs"] = certs
-    inv.setdefault("cas", inv.get("cas", []))
-    inv["updated_at"] = now_utc_str()
-    s3.put_json_with_meta(s3.key("cert-inventory.json"), inv)
-
-    if out == "table":
-        print(fmt_table([["RESULT","DETAIL"],["imported", f"cert {name}"]]))
-    else:
-        print(json.dumps({"result":"imported","name":name}, indent=2))
+    
+    write_cert(s3, state, schema_version=target_version)

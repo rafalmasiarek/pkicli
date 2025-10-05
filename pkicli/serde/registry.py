@@ -1,0 +1,19 @@
+from typing import Dict, Callable, Any
+
+class VersionAdapter:
+    def to_ir_ca(self, doc: dict): ...
+    def to_ir_cert(self, doc: dict): ...
+    def to_ir_inventory(self, doc: dict): ...
+    def from_ir_ca(self, cair) -> dict: ...
+    def from_ir_cert(self, certir) -> dict: ...
+    def from_ir_inventory(self, invir) -> dict: ...
+
+_registry: Dict[str, VersionAdapter] = {}
+
+def register(version: str, adapter: VersionAdapter):
+    _registry[version] = adapter
+
+def get(version: str) -> VersionAdapter:
+    if version not in _registry:
+        raise ValueError(f"Unsupported schema version: {version}")
+    return _registry[version]

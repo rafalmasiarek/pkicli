@@ -1,0 +1,483 @@
+{
+  "cas": [
+    {
+      "name": "k8s-ca",
+      "version": 1,
+      "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/k8s-ca.json",
+      "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/ca.crt-3w4y2S",
+      "key_arn": null,
+      "sha256": "47CDAB573D063730DDDAFD1E79AB4DAF8EAA9035791A479A7F2EBA14AB8B0E7B",
+      "not_before": "2025-09-28T20:51:47Z",
+      "not_after": "2035-09-26T20:51:47Z"
+    },
+    {
+      "name": "etcd-ca",
+      "version": 1,
+      "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/etcd-ca.json",
+      "crt_arn": null,
+      "key_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/etcd/ca.key-kPAKST",
+      "sha256": "E2EF4DD7145ECB656EB262442B409A69A0597835043F56BE44501D97EB313E64",
+      "not_before": "2025-09-28T20:51:47Z",
+      "not_after": "2035-09-26T20:51:47Z"
+    },
+    {
+      "name": "front-proxy-ca",
+      "version": 1,
+      "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/front-proxy-ca.json",
+      "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/front-proxy-ca.crt-dqGWNN",
+      "key_arn": null,
+      "sha256": "BF5C9E7D5E64541E7FEA87B6C4CBA5E6212B54BB824751823F5A3AD29F5EEF1E",
+      "not_before": "2025-09-28T20:51:48Z",
+      "not_after": "2035-09-26T20:51:48Z"
+    }
+  ],
+  "certs": [
+    {
+      "ca": {
+        "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/ca.crt-3w4y2S",
+        "key_arn": null,
+        "name": "k8s-ca",
+        "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/k8s-ca.json",
+        "version": 1
+      },
+      "cert_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver.crt-Z7zbC8",
+      "cluster": "ecs-k8s-on-ecs",
+      "cluster_info": {
+        "api_server": "https://ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com:6443",
+        "name": "ecs-k8s-on-ecs"
+      },
+      "key": {
+        "algo": "rsa",
+        "size": 4096
+      },
+      "key_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver.key-ncXz2O",
+      "metadata": {
+        "akid": "2A:D6:D1:4D:A1:00:F9:7E:11:43:53:84:42:08:C1:D4:96:7C:84:AA",
+        "issuer_cn": "issuer=CN=kubernetes, O=system:masters",
+        "not_after": "2030-09-27T20:51:49Z",
+        "not_before": "2025-09-28T20:51:49Z",
+        "pubkey_algo": "rsaEncryption",
+        "pubkey_bits": 4096,
+        "san": [
+          "10.96.0.1",
+          "ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com",
+          "kubernetes",
+          "kubernetes.default",
+          "kubernetes.default.svc",
+          "kubernetes.default.svc.cluster.local"
+        ],
+        "serial": "331036AECC98BADF4EE1A2BA5126EE118A11BC1A",
+        "sha256": "4DFBE74D981275F04010CFD056D18F22BC3D9BABB3C6AFD787CA082E777EF91F",
+        "sig_alg": "sha256WithRSAEncryption",
+        "skid": "07:33:6A:E3:86:D9:E6:94:56:89:62:82:8C:BC:01:8E:A8:C9:62:21",
+        "subject_cn": "subject=CN=kube-apiserver, O=system:masters"
+      },
+      "name": "apiserver",
+      "rotation": {
+        "last_update": "2025-09-28T20:52:25Z",
+        "status": "active"
+      },
+      "san": [
+        "10.96.0.1",
+        "ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com",
+        "kubernetes",
+        "kubernetes.default",
+        "kubernetes.default.svc",
+        "kubernetes.default.svc.cluster.local"
+      ],
+      "secret_arn": null,
+      "secrets_manager_meta": {
+        "cert": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver.crt-Z7zbC8",
+          "stages": [],
+          "version_id": "51df4b34-827d-4ee7-ab9e-40f0a60c41b0"
+        },
+        "key": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver.key-ncXz2O",
+          "stages": [
+            "AWSCURRENT"
+          ],
+          "version_id": "d32d6cda-9a75-4e55-98ff-454f160e2f67"
+        }
+      },
+      "subject": {
+        "CN": "kube-apiserver",
+        "O": "system:masters"
+      },
+      "type": "server",
+      "updated_at": "2025-09-28T20:52:25Z",
+      "validity_days": 1825,
+      "version": "v1"
+    },
+    {
+      "ca": {
+        "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/ca.crt-3w4y2S",
+        "key_arn": null,
+        "name": "k8s-ca",
+        "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/k8s-ca.json",
+        "version": 1
+      },
+      "cert_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver-kubelet-client.crt-SVeew9",
+      "cluster": "ecs-k8s-on-ecs",
+      "cluster_info": {
+        "api_server": "https://ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com:6443",
+        "name": "ecs-k8s-on-ecs"
+      },
+      "key": {
+        "algo": "rsa",
+        "size": 4096
+      },
+      "key_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver-kubelet-client.key-CKFlUc",
+      "metadata": {
+        "akid": "2A:D6:D1:4D:A1:00:F9:7E:11:43:53:84:42:08:C1:D4:96:7C:84:AA",
+        "issuer_cn": "issuer=CN=kubernetes, O=system:masters",
+        "not_after": "2030-09-27T20:51:49Z",
+        "not_before": "2025-09-28T20:51:49Z",
+        "pubkey_algo": "rsaEncryption",
+        "pubkey_bits": 4096,
+        "serial": "331036AECC98BADF4EE1A2BA5126EE118A11BC1B",
+        "sha256": "FA12F40B7A361BB828B14A25ABDAEBA232EB9ABD53622CDA86E8022F7D3F7065",
+        "sig_alg": "sha256WithRSAEncryption",
+        "skid": "59:AD:F3:F6:0D:61:66:73:AE:4E:07:94:F5:6C:54:2E:2C:8C:9D:0F",
+        "subject_cn": "subject=CN=kube-apiserver-kubelet-client, O=system:masters"
+      },
+      "name": "apiserver-kubelet-client",
+      "rotation": {
+        "last_update": "2025-09-28T20:52:27Z",
+        "status": "active"
+      },
+      "secret_arn": null,
+      "secrets_manager_meta": {
+        "cert": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver-kubelet-client.crt-SVeew9",
+          "stages": [],
+          "version_id": "0d783bf3-68cc-408f-a2a1-68e780407626"
+        },
+        "key": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserver-kubelet-client.key-CKFlUc",
+          "stages": [
+            "AWSCURRENT"
+          ],
+          "version_id": "9da3b2a9-73cb-47dd-9df5-cd4d1785bd06"
+        }
+      },
+      "subject": {
+        "CN": "kube-apiserver-kubelet-client",
+        "O": "system:masters"
+      },
+      "type": "client",
+      "updated_at": "2025-09-28T20:52:27Z",
+      "validity_days": 1825,
+      "version": "v1"
+    },
+    {
+      "ca": {
+        "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/front-proxy-ca.crt-dqGWNN",
+        "key_arn": null,
+        "name": "front-proxy-ca",
+        "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/front-proxy-ca.json",
+        "version": 1
+      },
+      "cert_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/front-proxy-client.crt-4ZTI81",
+      "cluster": "ecs-k8s-on-ecs",
+      "cluster_info": {
+        "api_server": "https://ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com:6443",
+        "name": "ecs-k8s-on-ecs"
+      },
+      "key": {
+        "algo": "rsa",
+        "size": 4096
+      },
+      "key_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/front-proxy-client.key-0pGXDU",
+      "metadata": {
+        "akid": "F4:1C:1D:16:17:8A:A0:FA:9C:2B:E1:01:83:98:C0:72:3D:16:24:18",
+        "issuer_cn": "issuer=CN=front-proxy-ca, O=system:front-proxy",
+        "not_after": "2030-09-27T20:51:49Z",
+        "not_before": "2025-09-28T20:51:49Z",
+        "pubkey_algo": "rsaEncryption",
+        "pubkey_bits": 4096,
+        "serial": "6086C8CC0DB5FCE4CD3D4CE4F2258A0CEA8BDA01",
+        "sha256": "BC42F019F29D336A1CE7B1BCE1A0DD7F42D7A418034E9E50CCAE40EA9577D1A8",
+        "sig_alg": "sha256WithRSAEncryption",
+        "skid": "46:57:89:C7:40:8B:0E:95:04:12:8E:03:53:15:B6:F7:FE:43:71:88",
+        "subject_cn": "subject=CN=front-proxy-client, O=system:front-proxy"
+      },
+      "name": "front-proxy-client",
+      "rotation": {
+        "last_update": "2025-09-28T20:52:28Z",
+        "status": "active"
+      },
+      "secret_arn": null,
+      "secrets_manager_meta": {
+        "cert": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/front-proxy-client.crt-4ZTI81",
+          "stages": [],
+          "version_id": "c6ff2051-de9a-4278-8670-5fc1eed8abe4"
+        },
+        "key": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/front-proxy-client.key-0pGXDU",
+          "stages": [
+            "AWSCURRENT"
+          ],
+          "version_id": "c31082f9-65c8-4b5f-aba3-c67a8c379383"
+        }
+      },
+      "subject": {
+        "CN": "front-proxy-client",
+        "O": "system:front-proxy"
+      },
+      "type": "client",
+      "updated_at": "2025-09-28T20:52:28Z",
+      "validity_days": 1825,
+      "version": "v1"
+    },
+    {
+      "ca": {
+        "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/etcd/ca.crt-kcBFBA",
+        "key_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/etcd/ca.key-kPAKST",
+        "name": "etcd-ca",
+        "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/etcd-ca.json",
+        "version": 1
+      },
+      "cert_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserwer-etcd-client.crt-SAppk2",
+      "cluster": "ecs-k8s-on-ecs",
+      "cluster_info": {
+        "api_server": "https://ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com:6443",
+        "name": "ecs-k8s-on-ecs"
+      },
+      "key": {
+        "algo": "rsa",
+        "size": 4096
+      },
+      "key_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserwer-etcd-client.key-8hPQsz",
+      "metadata": {
+        "akid": "5E:3B:F0:83:08:0C:B2:0F:F7:1F:9E:A0:3A:99:A5:AF:9E:CB:D7:99",
+        "issuer_cn": "issuer=CN=etcd-ca, O=system:etcd",
+        "not_after": "2030-09-27T20:51:49Z",
+        "not_before": "2025-09-28T20:51:49Z",
+        "pubkey_algo": "rsaEncryption",
+        "pubkey_bits": 4096,
+        "serial": "26369F2B8718EDE6ABEB14EAE3AC101995972A1C",
+        "sha256": "7C305B5747AC49DC510B5D0D68AC689EFD51FFB780EC7F0ADF69BE2229A435DE",
+        "sig_alg": "sha256WithRSAEncryption",
+        "skid": "5B:AD:22:B0:C8:21:02:99:AE:26:B5:F0:CA:F7:50:58:4E:EF:CD:FE",
+        "subject_cn": "subject=CN=kube-apiserver-etcd-client, O=system:masters"
+      },
+      "name": "apiserver-etcd-client",
+      "rotation": {
+        "last_update": "2025-09-28T20:52:29Z",
+        "status": "active"
+      },
+      "secret_arn": null,
+      "secrets_manager_meta": {
+        "cert": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserwer-etcd-client.crt-SAppk2",
+          "stages": [],
+          "version_id": null
+        },
+        "key": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/apiserwer-etcd-client.key-8hPQsz",
+          "stages": [],
+          "version_id": null
+        }
+      },
+      "subject": {
+        "CN": "kube-apiserver-etcd-client",
+        "O": "system:masters"
+      },
+      "type": "client",
+      "updated_at": "2025-09-28T20:52:29Z",
+      "validity_days": 1825,
+      "version": "v1"
+    },
+    {
+      "ca": {
+        "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/ca.crt-3w4y2S",
+        "key_arn": null,
+        "name": "k8s-ca",
+        "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/k8s-ca.json",
+        "version": 1
+      },
+      "cert_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/controller-manager.crt-0S0usU",
+      "cluster": "ecs-k8s-on-ecs",
+      "cluster_info": {
+        "api_server": "https://ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com:6443",
+        "name": "ecs-k8s-on-ecs"
+      },
+      "key": {
+        "algo": "rsa",
+        "size": 4096
+      },
+      "key_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/controller-manager.key-lBxuOe",
+      "metadata": {
+        "akid": "2A:D6:D1:4D:A1:00:F9:7E:11:43:53:84:42:08:C1:D4:96:7C:84:AA",
+        "issuer_cn": "issuer=CN=kubernetes, O=system:masters",
+        "not_after": "2030-09-27T20:51:50Z",
+        "not_before": "2025-09-28T20:51:50Z",
+        "pubkey_algo": "rsaEncryption",
+        "pubkey_bits": 4096,
+        "serial": "331036AECC98BADF4EE1A2BA5126EE118A11BC1C",
+        "sha256": "874D2CABBAD4BF4BF70B98D0A7DB9DC266A5CA635C4F5152C05EB577F718419F",
+        "sig_alg": "sha256WithRSAEncryption",
+        "skid": "A9:95:C5:4B:B7:00:9C:33:93:D7:00:5F:BF:42:EC:26:82:0C:82:8D",
+        "subject_cn": "subject=CN=system:kube-controller-manager, O=system:kube-controller-manager"
+      },
+      "name": "controller-manager",
+      "rotation": {
+        "last_update": "2025-09-28T20:52:31Z",
+        "status": "active"
+      },
+      "secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/kubeconfig/controller-manager.conf-j9nWtX",
+      "secrets_manager_meta": {
+        "cert": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/controller-manager.crt-0S0usU",
+          "stages": [],
+          "version_id": "280e4691-a03a-43f3-aef8-ed59940e12cc"
+        },
+        "key": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/controller-manager.key-lBxuOe",
+          "stages": [
+            "AWSCURRENT"
+          ],
+          "version_id": "85521d54-9a14-4618-bf85-efc13c72939d"
+        }
+      },
+      "subject": {
+        "CN": "system:kube-controller-manager",
+        "O": "system:kube-controller-manager"
+      },
+      "type": "client",
+      "updated_at": "2025-09-28T20:52:31Z",
+      "validity_days": 1825,
+      "version": "v1"
+    },
+    {
+      "ca": {
+        "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/ca.crt-3w4y2S",
+        "key_arn": null,
+        "name": "k8s-ca",
+        "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/k8s-ca.json",
+        "version": 1
+      },
+      "cert_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/scheduler.crt-0G0rWr",
+      "cluster": "ecs-k8s-on-ecs",
+      "cluster_info": {
+        "api_server": "https://ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com:6443",
+        "name": "ecs-k8s-on-ecs"
+      },
+      "key": {
+        "algo": "rsa",
+        "size": 4096
+      },
+      "key_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/scheduler.key-OlPHgI",
+      "metadata": {
+        "akid": "2A:D6:D1:4D:A1:00:F9:7E:11:43:53:84:42:08:C1:D4:96:7C:84:AA",
+        "issuer_cn": "issuer=CN=kubernetes, O=system:masters",
+        "not_after": "2030-09-27T20:51:51Z",
+        "not_before": "2025-09-28T20:51:51Z",
+        "pubkey_algo": "rsaEncryption",
+        "pubkey_bits": 4096,
+        "serial": "331036AECC98BADF4EE1A2BA5126EE118A11BC1D",
+        "sha256": "F2B709BEFD074B6DEFA1F1482463AC15A13371E601AD5CE0E1F82767D6B1726A",
+        "sig_alg": "sha256WithRSAEncryption",
+        "skid": "EF:72:79:A5:18:3D:3E:5F:3A:2F:DD:33:3A:82:D1:89:64:A2:45:33",
+        "subject_cn": "subject=CN=system:kube-scheduler, O=system:kube-scheduler"
+      },
+      "name": "scheduler",
+      "rotation": {
+        "last_update": "2025-09-28T20:52:32Z",
+        "status": "active"
+      },
+      "secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/kubeconfig/scheduler.conf-uCHH4Z",
+      "secrets_manager_meta": {
+        "cert": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/scheduler.crt-0G0rWr",
+          "stages": [],
+          "version_id": "d84ee12a-c3fb-49be-b9bf-92eb3393c523"
+        },
+        "key": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/scheduler.key-OlPHgI",
+          "stages": [
+            "AWSCURRENT"
+          ],
+          "version_id": "c7d00c5f-ff1a-4d36-a017-c825314aaced"
+        }
+      },
+      "subject": {
+        "CN": "system:kube-scheduler",
+        "O": "system:kube-scheduler"
+      },
+      "type": "client",
+      "updated_at": "2025-09-28T20:52:32Z",
+      "validity_days": 1825,
+      "version": "v1"
+    },
+    {
+      "ca": {
+        "crt_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/ca.crt-3w4y2S",
+        "key_arn": null,
+        "name": "k8s-ca",
+        "state_s3": "s3://k8s-cluster-infra-pki-state-442897381512/ecs-k8s-on-ecs/pki/state/k8s-ca.json",
+        "version": 1
+      },
+      "cert_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/admin.crt-GbSV1Y",
+      "cluster": "ecs-k8s-on-ecs",
+      "cluster_info": {
+        "api_server": "https://ecs-k8s-on-ecs-api-61a1fec8e00671dc.elb.eu-central-1.amazonaws.com:6443",
+        "name": "ecs-k8s-on-ecs"
+      },
+      "key": {
+        "algo": "rsa",
+        "size": 4096
+      },
+      "key_secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/admin.key-nMm1dd",
+      "metadata": {
+        "akid": "2A:D6:D1:4D:A1:00:F9:7E:11:43:53:84:42:08:C1:D4:96:7C:84:AA",
+        "issuer_cn": "issuer=CN=kubernetes, O=system:masters",
+        "not_after": "2030-09-27T20:51:51Z",
+        "not_before": "2025-09-28T20:51:51Z",
+        "pubkey_algo": "rsaEncryption",
+        "pubkey_bits": 4096,
+        "serial": "331036AECC98BADF4EE1A2BA5126EE118A11BC1E",
+        "sha256": "3BE3CB141C024A2C4C9826A276868C5305DD29358EB0936FC1DF9EB902A971C3",
+        "sig_alg": "sha256WithRSAEncryption",
+        "skid": "2F:36:61:04:FE:C2:89:A2:5D:75:99:80:3A:D0:61:03:89:CF:77:C0",
+        "subject_cn": "subject=CN=kubernetes-admin, O=system:masters"
+      },
+      "name": "admin",
+      "rotation": {
+        "last_update": "2025-09-28T20:52:33Z",
+        "status": "active"
+      },
+      "secret_arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/kubeconfig/admin.conf-g3ctDB",
+      "secrets_manager_meta": {
+        "cert": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/admin.crt-GbSV1Y",
+          "stages": [],
+          "version_id": "8334d6ff-004b-4150-920f-f13abedbbebf"
+        },
+        "key": {
+          "arn": "arn:aws:secretsmanager:eu-central-1:442897381512:secret:/ecs-k8s-on-ecs/pki/admin.key-nMm1dd",
+          "stages": [
+            "AWSCURRENT"
+          ],
+          "version_id": "53037636-41de-41c2-91f6-ec13aad027c7"
+        }
+      },
+      "subject": {
+        "CN": "kubernetes-admin",
+        "O": "system:masters"
+      },
+      "type": "client",
+      "updated_at": "2025-09-28T20:52:33Z",
+      "validity_days": 1825,
+      "version": "v1"
+    }
+  ],
+  "cluster": "ecs-k8s-on-ecs",
+  "s3_meta": {
+    "etag": "322b49288a27b0247e591fb200834551",
+    "version_id": "J2ddJJGIR7Cl_vqEYZu0uEIB1.W60O8c"
+  },
+  "updated_at": "2025-09-28T20:52:35Z"
+}
